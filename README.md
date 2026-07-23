@@ -8,6 +8,7 @@ Organize frequently used files and folders into hierarchical groups in the VS Co
 - Add or remove files and folders from Explorer, editor tabs, or the Command Palette.
 - Drag open editor tabs onto a group to add them.
 - Open every registered file in a group from the Command Palette.
+- Add line comments to registered files from the editor context menu or Command Palette.
 - Browse registered folders and their contents in the tree.
 - Expand or collapse all nested folders for an individual group.
 - Import and export the group structure as JSON.
@@ -21,6 +22,10 @@ Organize frequently used files and folders into hierarchical groups in the VS Co
 5. Select a target group one level at a time. Select **Current group** to finish at the current level.
 
 Click a file to open it. Click a registered folder to reveal it in Explorer. Use the group expand icon to open all nested folders in that group; select it again to collapse the group.
+
+Place the cursor on a line in a registered file, then run **Workgroup Files: Add Comment at Cursor**. Comments are stored by file, not by group, and appear everywhere that file is registered in the sidebar.
+
+Use the workspace setting `workgroupFiles.commentHighlighting` to turn editor comment highlights on or off. It is enabled by default.
 
 ## Management
 
@@ -55,6 +60,7 @@ Install the generated `.vsix` file from **Extensions: Install from VSIX...**.
 - 탐색기, 편집기 탭, 명령 팔레트에서 파일·폴더 등록 및 제거
 - 열린 편집기 탭을 그룹으로 드래그해 등록
 - 명령 팔레트에서 그룹의 등록 파일 전체 열기
+- 편집기 우클릭 메뉴 또는 명령 팔레트에서 등록 파일의 줄 코멘트 추가
 - 등록한 폴더와 하위 항목 트리 탐색
 - 그룹별 하위 폴더 전체 펼치기·접기
 - 그룹 구조 JSON 가져오기·내보내기
@@ -68,6 +74,10 @@ Install the generated `.vsix` file from **Extensions: Install from VSIX...**.
 5. 그룹을 한 단계씩 선택하고, 현재 단계에 등록하려면 **현재 그룹 선택**을 누릅니다.
 
 파일을 클릭하면 열리고, 등록된 폴더를 클릭하면 탐색기에서 위치가 표시됩니다. 그룹의 펼치기 아이콘을 누르면 하위 폴더가 모두 열리며, 다시 누르면 그룹을 접습니다.
+
+등록된 파일에서 커서를 원하는 줄에 둔 뒤 **Workgroup Files: Add Comment at Cursor** 명령을 실행하면 코멘트를 추가할 수 있습니다. 코멘트는 그룹이 아닌 파일별로 저장되며, 해당 파일이 등록된 모든 그룹 위치에 표시됩니다.
+
+워크스페이스 설정 `workgroupFiles.commentHighlighting`으로 편집기 코멘트 강조 표시를 켜거나 끌 수 있으며, 기본값은 켜짐입니다.
 
 ## 관리
 

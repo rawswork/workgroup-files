@@ -7,8 +7,16 @@ interface FileGroup {
   groups?: FileGroup[];
 }
 
+interface FileComment {
+  filePath: string;
+  line: number;
+  character: number;
+  text: string;
+  createdAt: string;
+}
+
 type GroupPath = string[];
-type FavoriteItem = GroupItem | FileItem | FolderItem;
+type FavoriteItem = GroupItem | FileItem | FolderItem | CommentItem;
 
 function groupKey(groupPath: GroupPath): string {
   return groupPath.join("\u001f");
@@ -36,6 +44,10 @@ function collectGroupFiles(group: FileGroup): string[] {
   return [...group.files, ...(group.groups ?? []).flatMap(collectGroupFiles)];
 }
 
+function isRegisteredFile(groups: FileGroup[], filePath: string): boolean {
+  return groups.some((group) => group.files.includes(filePath) || isRegisteredFile(group.groups ?? [], filePath));
+}
+
 async function sanitizeGroups(value: unknown): Promise<FileGroup[]> {
   if (!Array.isArray(value)) return [];
   const result: FileGroup[] = [];
@@ -60,6 +72,23 @@ async function sanitizeGroups(value: unknown): Promise<FileGroup[]> {
   return result;
 }
 
+async function sanitizeComments(value: unknown): Promise<FileComment[]> {
+  if (!Array.isArray(value)) return [];
+  const comments: FileComment[] = [];
+  for (const candidate of value) {
+    if (!candidate || typeof candidate !== "object") continue;
+    const source = candidate as Partial<FileComment>;
+    if (typeof source.filePath !== "string" || typeof source.line !== "number" || typeof source.character !== "number" || typeof source.text !== "string") continue;
+    try {
+      const stat = await vscode.workspace.fs.stat(vscode.Uri.file(source.filePath));
+      if (stat.type !== vscode.FileType.Directory) comments.push({ filePath: source.filePath, line: source.line, character: source.character, text: source.text, createdAt: typeof source.createdAt === "string" ? source.createdAt : new Date().toISOString() });
+    } catch {
+      // Missing paths are intentionally excluded during import.
+    }
+  }
+  return comments;
+}
+
 class GroupItem extends vscode.TreeItem {
   constructor(
     public readonly group: FileGroup,
@@ -79,14 +108,25 @@ class FileItem extends vscode.TreeItem {
   constructor(
     public readonly groupPath: GroupPath,
     public readonly filePath: string,
+    public readonly comments: FileComment[],
   ) {
     const uri = vscode.Uri.file(filePath);
-    super(path.basename(filePath), vscode.TreeItemCollapsibleState.None);
+    super(path.basename(filePath), comments.length ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
     this.resourceUri = uri;
     this.tooltip = filePath;
-    this.description = vscode.workspace.asRelativePath(uri, false);
+    this.description = `${vscode.workspace.asRelativePath(uri, false)}${comments.length ? ` · ${comments.length} comment${comments.length === 1 ? "" : "s"}` : ""}`;
     this.contextValue = "workgroupFiles.file";
     this.command = { command: "vscode.open", title: "Open File", arguments: [uri] };
+  }
+}
+
+class CommentItem extends vscode.TreeItem {
+  constructor(public readonly comment: FileComment) {
+    super(`Ln ${comment.line + 1}: ${comment.text}`, vscode.TreeItemCollapsibleState.None);
+    this.contextValue = "workgroupFiles.comment";
+    this.iconPath = new vscode.ThemeIcon("comment");
+    this.tooltip = `${comment.filePath}:${comment.line + 1}\n${comment.text}`;
+    this.command = { command: "workgroupFiles.openComment", title: "Open Comment", arguments: [comment] };
   }
 }
 
@@ -115,7 +155,7 @@ class GroupsProvider implements vscode.TreeDataProvider<FavoriteItem> {
   private treeVersion = 0;
   readonly onDidChangeTreeData = this.changed.event;
 
-  constructor(private readonly getGroups: () => FileGroup[]) {}
+  constructor(private readonly getGroups: () => FileGroup[], private readonly getComments: () => FileComment[]) {}
 
   refresh(): void {
     this.changed.fire(undefined);
@@ -144,13 +184,14 @@ class GroupsProvider implements vscode.TreeDataProvider<FavoriteItem> {
     if (element instanceof GroupItem) {
       return [...this.createGroupItems(element.group.groups ?? [], element.groupPath), ...(await this.createPathItems(element.groupPath, element.group.files))];
     }
+    if (element instanceof FileItem) return element.comments.map((comment) => new CommentItem(comment));
     if (element instanceof FolderItem) {
       try {
         const expanded = this.isGroupExpanded(element.groupPath);
         return (await vscode.workspace.fs.readDirectory(vscode.Uri.file(element.folderPath)))
           .map(([name, type]) => {
             const entryPath = path.join(element.folderPath, name);
-            return type === vscode.FileType.Directory ? new FolderItem(element.groupPath, entryPath, expanded, `folder:${entryPath}:${this.treeVersion}`) : new FileItem(element.groupPath, entryPath);
+            return type === vscode.FileType.Directory ? new FolderItem(element.groupPath, entryPath, expanded, `folder:${entryPath}:${this.treeVersion}`) : new FileItem(element.groupPath, entryPath, this.getComments().filter((comment) => comment.filePath === entryPath));
           })
           .sort((a, b) => a.label!.toString().localeCompare(b.label!.toString()));
       } catch {
@@ -174,9 +215,9 @@ class GroupsProvider implements vscode.TreeDataProvider<FavoriteItem> {
       paths.map(async (itemPath) => {
         try {
           const stat = await vscode.workspace.fs.stat(vscode.Uri.file(itemPath));
-          return stat.type === vscode.FileType.Directory ? new FolderItem(groupPath, itemPath, expanded, `folder:${itemPath}:${this.treeVersion}`) : new FileItem(groupPath, itemPath);
+          return stat.type === vscode.FileType.Directory ? new FolderItem(groupPath, itemPath, expanded, `folder:${itemPath}:${this.treeVersion}`) : new FileItem(groupPath, itemPath, this.getComments().filter((comment) => comment.filePath === itemPath));
         } catch {
-          return new FileItem(groupPath, itemPath);
+          return new FileItem(groupPath, itemPath, this.getComments().filter((comment) => comment.filePath === itemPath));
         }
       }),
     );
@@ -217,41 +258,103 @@ class GroupDropController implements vscode.TreeDragAndDropController<FavoriteIt
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const storageKey = "groups";
+  const commentsStorageKey = "comments";
   const settingsDirectory = context.storageUri;
   const settingsUri = settingsDirectory ? vscode.Uri.joinPath(settingsDirectory, "workgroup-files.json") : undefined;
   let usesSettingsFile = false;
   let groupsCache = context.workspaceState.get<FileGroup[]>(storageKey, []);
+  let commentsCache = context.workspaceState.get<FileComment[]>(commentsStorageKey, []);
   if (settingsUri) {
     try {
-      const parsed = JSON.parse(Buffer.from(await vscode.workspace.fs.readFile(settingsUri)).toString("utf8")) as { groups?: unknown };
+      const parsed = JSON.parse(Buffer.from(await vscode.workspace.fs.readFile(settingsUri)).toString("utf8")) as { groups?: unknown; comments?: unknown };
       groupsCache = await sanitizeGroups(Array.isArray(parsed) ? parsed : parsed.groups);
+      commentsCache = await sanitizeComments(Array.isArray(parsed) ? [] : parsed.comments);
       usesSettingsFile = true;
       await context.workspaceState.update(storageKey, groupsCache);
+      await context.workspaceState.update(commentsStorageKey, commentsCache);
     } catch {
       // The editable settings file is optional until the user opens it.
     }
   }
   const readGroups = (): FileGroup[] => groupsCache;
+  const readComments = (): FileComment[] => commentsCache;
+  const commentMarker = vscode.window.createTextEditorDecorationType({
+    overviewRulerColor: "#F59E0B",
+    overviewRulerLane: vscode.OverviewRulerLane.Full,
+    gutterIconPath: vscode.Uri.joinPath(context.extensionUri, "resources", "comment-marker.svg"),
+    gutterIconSize: "contain",
+    backgroundColor: "rgba(245, 158, 11, 0.10)",
+    border: "1px solid rgba(245, 158, 11, 0.35)",
+    isWholeLine: true,
+  });
+  const updateCommentMarkers = (): void => {
+    for (const editor of vscode.window.visibleTextEditors) {
+      if (!vscode.workspace.getConfiguration("workgroupFiles").get<boolean>("commentHighlighting", true)) {
+        editor.setDecorations(commentMarker, []);
+        continue;
+      }
+      if (editor.document.uri.scheme !== "file") continue;
+      const commentsByLine = new Map<number, FileComment[]>();
+      for (const comment of commentsCache.filter((entry) => entry.filePath === editor.document.uri.fsPath && entry.line >= 0 && entry.line < editor.document.lineCount)) {
+        commentsByLine.set(comment.line, [...(commentsByLine.get(comment.line) ?? []), comment]);
+      }
+      const decorations: vscode.DecorationOptions[] = [...commentsByLine.entries()].map(([lineNumber, comments]) => {
+        const line = editor.document.lineAt(lineNumber);
+        const message = comments.map((comment) => comment.text).join(" · ");
+        const preview = message.length > 90 ? `${message.slice(0, 87)}...` : message;
+        return {
+          range: line.range,
+          hoverMessage: message,
+          renderOptions: {
+            after: {
+              contentText: `  💬 ${preview}`,
+              color: "#D97706",
+              fontStyle: "italic",
+              margin: "0 0 0 1em",
+            },
+          },
+        };
+      });
+      editor.setDecorations(commentMarker, decorations);
+    }
+  };
   const saveGroups = async (groups: FileGroup[]): Promise<void> => {
     groupsCache = groups;
     await context.workspaceState.update(storageKey, groups);
     if (usesSettingsFile && settingsUri && settingsDirectory) {
       await vscode.workspace.fs.createDirectory(settingsDirectory);
-      await vscode.workspace.fs.writeFile(settingsUri, Buffer.from(JSON.stringify({ version: 1, groups }, undefined, 2), "utf8"));
+      await vscode.workspace.fs.writeFile(settingsUri, Buffer.from(JSON.stringify({ version: 1, groups, comments: commentsCache }, undefined, 2), "utf8"));
     }
   };
-  const provider = new GroupsProvider(readGroups);
+  const saveComments = async (comments: FileComment[]): Promise<void> => {
+    commentsCache = comments;
+    await context.workspaceState.update(commentsStorageKey, comments);
+    await saveGroups(groupsCache);
+    updateCommentMarkers();
+  };
+  const provider = new GroupsProvider(readGroups, readComments);
   const treeView = vscode.window.createTreeView("workgroupFiles.groups", { treeDataProvider: provider, dragAndDropController: new GroupDropController(readGroups, saveGroups, () => provider.refresh()) });
   context.subscriptions.push(treeView);
+  context.subscriptions.push(
+    commentMarker,
+    vscode.window.onDidChangeVisibleTextEditors(updateCommentMarkers),
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration("workgroupFiles.commentHighlighting")) updateCommentMarkers();
+    }),
+  );
+  updateCommentMarkers();
 
   const reloadSettingsFile = async (): Promise<void> => {
     if (!settingsUri) return;
     try {
-      const parsed = JSON.parse(Buffer.from(await vscode.workspace.fs.readFile(settingsUri)).toString("utf8")) as { groups?: unknown };
+      const parsed = JSON.parse(Buffer.from(await vscode.workspace.fs.readFile(settingsUri)).toString("utf8")) as { groups?: unknown; comments?: unknown };
       groupsCache = await sanitizeGroups(Array.isArray(parsed) ? parsed : parsed.groups);
+      commentsCache = await sanitizeComments(Array.isArray(parsed) ? [] : parsed.comments);
       usesSettingsFile = true;
       await context.workspaceState.update(storageKey, groupsCache);
+      await context.workspaceState.update(commentsStorageKey, commentsCache);
       provider.refresh();
+      updateCommentMarkers();
     } catch {
       vscode.window.showErrorMessage("Workgroup Files settings could not be read. Check workgroup-files.json.");
     }
@@ -354,6 +457,28 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       provider.refresh();
     }),
     vscode.commands.registerCommand("workgroupFiles.addFileToGroup", addToGroup),
+    vscode.commands.registerCommand("workgroupFiles.addComment", async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor || editor.document.uri.scheme !== "file") return;
+      const filePath = editor.document.uri.fsPath;
+      if (!isRegisteredFile(readGroups(), filePath)) {
+        const groupPath = await chooseGroup("Choose a group to add this file to");
+        if (!groupPath) return;
+        const groups = readGroups();
+        const group = findGroup(groups, groupPath);
+        if (!group) return;
+        if (!group.files.includes(filePath)) {
+          group.files.push(filePath);
+          await saveGroups(groups);
+          provider.refresh();
+        }
+      }
+      const text = await vscode.window.showInputBox({ prompt: `Comment for line ${editor.selection.active.line + 1}`, validateInput: (value) => value.trim() ? undefined : "Enter a comment." });
+      if (!text) return;
+      const position = editor.selection.active;
+      await saveComments([...readComments(), { filePath, line: position.line, character: position.character, text: text.trim(), createdAt: new Date().toISOString() }]);
+      provider.refresh();
+    }),
     vscode.commands.registerCommand("workgroupFiles.removeFileFromGroup", async (item?: vscode.Uri | FileItem | FolderItem) => {
       const groups = readGroups();
       if (item instanceof FileItem || item instanceof FolderItem) {
@@ -400,6 +525,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }
       for (const filePath of files) await vscode.window.showTextDocument(vscode.Uri.file(filePath), { preview: false, preserveFocus: true });
     }),
+    vscode.commands.registerCommand("workgroupFiles.openComment", async (comment: FileComment) => {
+      const document = await vscode.window.showTextDocument(vscode.Uri.file(comment.filePath));
+      const position = new vscode.Position(comment.line, comment.character);
+      document.selection = new vscode.Selection(position, position);
+      document.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
+    }),
     vscode.commands.registerCommand("workgroupFiles.revealInExplorer", async (item?: FolderItem) => {
       if (item instanceof FolderItem) {
         await vscode.commands.executeCommand("revealInExplorer", vscode.Uri.file(item.folderPath));
@@ -440,7 +571,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         saveLabel: "Export Groups",
       });
       if (!target) return;
-      const contents = JSON.stringify({ version: 1, groups: readGroups() }, undefined, 2);
+      const contents = JSON.stringify({ version: 1, groups: readGroups(), comments: readComments() }, undefined, 2);
       await vscode.workspace.fs.writeFile(target, Buffer.from(contents, "utf8"));
       vscode.window.showInformationMessage("Workgroup Files groups exported.");
     }),
@@ -455,9 +586,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         return;
       }
       const imported = await sanitizeGroups(Array.isArray(parsed) ? parsed : (parsed as { groups?: unknown })?.groups);
+      const importedComments = await sanitizeComments(Array.isArray(parsed) ? [] : (parsed as { comments?: unknown })?.comments);
       const confirmed = await vscode.window.showWarningMessage("Replace the current Workgroup Files groups with the imported groups?", { modal: true }, "Replace");
       if (confirmed !== "Replace") return;
       await saveGroups(imported);
+      await saveComments(importedComments);
       provider.refresh();
       vscode.window.showInformationMessage("Workgroup Files groups imported.");
     }),

@@ -60,6 +60,10 @@
         "title": "Workgroup Files: Add File to Group"
       },
       {
+        "command": "workgroupFiles.addComment",
+        "title": "Workgroup Files: Add Comment at Cursor"
+      },
+      {
         "command": "workgroupFiles.removeFileFromGroup",
         "title": "Workgroup Files: Remove File from Group",
         "icon": {
@@ -125,6 +129,17 @@
         }
       ]
     },
+    "configuration": {
+      "title": "Workgroup Files",
+      "properties": {
+        "workgroupFiles.commentHighlighting": {
+          "type": "boolean",
+          "default": true,
+          "scope": "window",
+          "description": "Show Workgroup Files comments in the editor, gutter, and overview ruler."
+        }
+      }
+    },
     "menus": {
       "view/title": [
         {
@@ -165,6 +180,13 @@
           "command": "workgroupFiles.removeFileFromGroup",
           "group": "navigation@101",
           "when": "resourceScheme == file"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "workgroupFiles.addComment",
+          "group": "navigation@100",
+          "when": "editorTextFocus && resourceScheme == file"
         }
       ],
       "view/item/context": [
