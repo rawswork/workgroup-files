@@ -17,6 +17,7 @@ interface FileComment {
 
 type GroupPath = string[];
 type FavoriteItem = GroupItem | FileItem | FolderItem | CommentItem;
+const groupDragMimeType = "application/vnd.workgroup-files.group";
 
 function groupKey(groupPath: GroupPath): string {
   return groupPath.join("\u001f");
@@ -226,15 +227,58 @@ class GroupsProvider implements vscode.TreeDataProvider<FavoriteItem> {
 }
 
 class GroupDropController implements vscode.TreeDragAndDropController<FavoriteItem> {
-  readonly dropMimeTypes = ["text/uri-list"];
-  readonly dragMimeTypes: string[] = [];
+  readonly dropMimeTypes = ["text/uri-list", groupDragMimeType];
+  readonly dragMimeTypes = [groupDragMimeType];
   constructor(
     private readonly readGroups: () => FileGroup[],
     private readonly saveGroups: (groups: FileGroup[]) => Thenable<void>,
     private readonly refresh: () => void,
   ) {}
 
+  handleDrag(source: readonly FavoriteItem[], dataTransfer: vscode.DataTransfer): void {
+    const groups = source.filter((item): item is GroupItem => item instanceof GroupItem);
+    if (groups.length) dataTransfer.set(groupDragMimeType, new vscode.DataTransferItem(JSON.stringify(groups.map((group) => group.groupPath))));
+  }
+
   async handleDrop(target: FavoriteItem | undefined, dataTransfer: vscode.DataTransfer): Promise<void> {
+    const groupDrop = dataTransfer.get(groupDragMimeType);
+    if (groupDrop) {
+      let sourcePaths: GroupPath[];
+      try {
+        sourcePaths = JSON.parse(await groupDrop.asString()) as GroupPath[];
+      } catch {
+        return;
+      }
+      const targetPath = target instanceof GroupItem ? target.groupPath : undefined;
+      const groups = this.readGroups();
+      const movingPaths = sourcePaths.filter((sourcePath) => {
+        if (!findGroup(groups, sourcePath)) return false;
+        if (targetPath && (groupKey(sourcePath) === groupKey(targetPath) || targetPath.slice(0, sourcePath.length).every((part, index) => part === sourcePath[index]))) return false;
+        return true;
+      });
+      if (!movingPaths.length) {
+        vscode.window.showWarningMessage("A group cannot be moved into itself or one of its child groups.");
+        return;
+      }
+      const destination = targetPath ? findGroup(groups, targetPath) : undefined;
+      const destinationGroups = destination ? (destination.groups ??= []) : groups;
+      const movingGroupReferences = movingPaths.map((sourcePath) => findGroup(groups, sourcePath)).filter((group): group is FileGroup => Boolean(group));
+      if (movingGroupReferences.some((group) => destinationGroups.some((candidate) => candidate !== group && candidate.name.toLocaleLowerCase() === group.name.toLocaleLowerCase()))) {
+        vscode.window.showWarningMessage("A group with the same name already exists at the destination.");
+        return;
+      }
+      const movingGroups: FileGroup[] = [];
+      for (const sourcePath of movingPaths) {
+        const parent = sourcePath.length > 1 ? findGroup(groups, sourcePath.slice(0, -1)) : undefined;
+        const siblings = parent ? (parent.groups ?? []) : groups;
+        const index = siblings.findIndex((group) => group.name === sourcePath[sourcePath.length - 1]);
+        if (index >= 0) movingGroups.push(...siblings.splice(index, 1));
+      }
+      destinationGroups.push(...movingGroups);
+      await this.saveGroups(groups);
+      this.refresh();
+      return;
+    }
     const targetPath = target instanceof GroupItem || target instanceof FileItem || target instanceof FolderItem ? target.groupPath : undefined;
     if (!targetPath) return;
     const uriList = dataTransfer.get("text/uri-list");

@@ -5,6 +5,7 @@ Organize frequently used files and folders into hierarchical groups in the VS Co
 ## Features
 
 - Create top-level and nested groups.
+- Drag groups to reorganize their hierarchy.
 - Add or remove files and folders from Explorer, editor tabs, or the Command Palette.
 - Drag open editor tabs onto a group to add them.
 - Open every registered file in a group from the Command Palette.
@@ -20,6 +21,8 @@ Organize frequently used files and folders into hierarchical groups in the VS Co
 3. Select a group's `+` icon to create a child group.
 4. Right-click a file or folder in Explorer, then select **Workgroup Files: Add File to Group**.
 5. Select a target group one level at a time. Select **Current group** to finish at the current level.
+
+Drag a group onto another group to make it a child group. Drop it in empty tree space to move it back to the top level.
 
 Click a file to open it. Click a registered folder to reveal it in Explorer. Use the group expand icon to open all nested folders in that group; select it again to collapse the group.
 
@@ -57,6 +60,7 @@ Install the generated `.vsix` file from **Extensions: Install from VSIX...**.
 ## 주요 기능
 
 - 최상위 그룹과 하위 그룹 생성
+- 그룹 드래그로 계층 구조 조정
 - 탐색기, 편집기 탭, 명령 팔레트에서 파일·폴더 등록 및 제거
 - 열린 편집기 탭을 그룹으로 드래그해 등록
 - 명령 팔레트에서 그룹의 등록 파일 전체 열기
@@ -72,6 +76,8 @@ Install the generated `.vsix` file from **Extensions: Install from VSIX...**.
 3. 그룹 행의 `+` 아이콘을 눌러 하위 그룹을 만듭니다.
 4. 탐색기에서 파일 또는 폴더를 우클릭하고 **Workgroup Files: Add File to Group**을 선택합니다.
 5. 그룹을 한 단계씩 선택하고, 현재 단계에 등록하려면 **현재 그룹 선택**을 누릅니다.
+
+그룹을 다른 그룹 위로 드래그하면 하위 그룹이 됩니다. 트리의 빈 공간에 놓으면 최상위 그룹으로 이동합니다.
 
 파일을 클릭하면 열리고, 등록된 폴더를 클릭하면 탐색기에서 위치가 표시됩니다. 그룹의 펼치기 아이콘을 누르면 하위 폴더가 모두 열리며, 다시 누르면 그룹을 접습니다.
 
