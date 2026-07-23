@@ -32,6 +32,14 @@
         }
       },
       {
+        "command": "workgroupFiles.createRootGroup",
+        "title": "Workgroup Files: Create Top-Level Group",
+        "icon": {
+          "light": "resources/add-light.svg",
+          "dark": "resources/add-dark.svg"
+        }
+      },
+      {
         "command": "workgroupFiles.expandGroup",
         "title": "Workgroup Files: Expand Group",
         "icon": {
@@ -143,7 +151,7 @@
     "menus": {
       "view/title": [
         {
-          "command": "workgroupFiles.createGroup",
+          "command": "workgroupFiles.createRootGroup",
           "when": "view == workgroupFiles.groups",
           "group": "navigation@1"
         },

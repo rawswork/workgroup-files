@@ -400,6 +400,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   };
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("workgroupFiles.createRootGroup", () => vscode.commands.executeCommand("workgroupFiles.createGroup")),
     vscode.commands.registerCommand("workgroupFiles.expandGroup", async (item: GroupItem) => {
       if (provider.isGroupExpanded(item.groupPath)) {
         provider.toggleGroup(item.groupPath);
@@ -409,7 +410,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
     vscode.commands.registerCommand("workgroupFiles.createGroup", async (parentItem?: GroupItem) => {
       const groups = readGroups();
-      const parentPath = parentItem?.groupPath;
+      const parentPath = parentItem instanceof GroupItem ? parentItem.groupPath : undefined;
       const parent = parentPath ? findGroup(groups, parentPath) : undefined;
       const siblings = parent ? (parent.groups ??= []) : groups;
       const name = await vscode.window.showInputBox({ prompt: "Group name", validateInput: (value) => (!value.trim() ? "Enter a group name." : siblings.some((group) => group.name.toLocaleLowerCase() === value.trim().toLocaleLowerCase()) ? "A group with that name already exists here." : undefined) });
