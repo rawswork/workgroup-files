@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.5
+
+- Added file-based line comments from the editor context menu and Command Palette.
+- Added inline comment previews, gutter icons, line highlighting, and overview ruler markers.
+- Added the `workgroupFiles.commentHighlighting` workspace setting, enabled by default.
+- Added drag and drop to move groups into another group or back to the top level.
+
+### 한국어
+
+- 편집기 우클릭 메뉴와 명령 팔레트에서 파일별 줄 코멘트를 추가할 수 있습니다.
+- 인라인 코멘트 미리보기, 줄 번호 여백 아이콘, 줄 강조, 우측 개요 눈금 표시를 추가했습니다.
+- 기본값이 켜짐인 `workgroupFiles.commentHighlighting` 워크스페이스 설정을 추가했습니다.
+- 그룹을 다른 그룹으로 이동하거나 최상위 레벨로 되돌리는 드래그 앤 드롭을 추가했습니다.
+
 ## 0.1.4
 
 - Added a dedicated PNG icon for the Visual Studio Marketplace listing.

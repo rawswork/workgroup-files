@@ -3,7 +3,7 @@
   "displayName": "Workgroup Files",
   "description": "Organize frequently used files into workspace groups.",
   "icon": "resources/rawswork_dark.png",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "rawswork",
   "license": "MIT",
   "repository": {
