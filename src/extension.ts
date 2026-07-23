@@ -50,6 +50,35 @@ function collectGroupFiles(group: FileGroup): string[] {
   return [...group.files, ...(group.groups ?? []).flatMap(collectGroupFiles)];
 }
 
+async function collectOpenableFiles(paths: string[], limit: number): Promise<{ files: string[]; hasMore: boolean }> {
+  const files: string[] = [];
+  const visited = new Set<string>();
+  const visit = async (filePath: string): Promise<void> => {
+    if (files.length > limit || visited.has(filePath)) return;
+    visited.add(filePath);
+    try {
+      const uri = vscode.Uri.file(filePath);
+      const stat = await vscode.workspace.fs.stat(uri);
+      if (stat.type !== vscode.FileType.Directory) {
+        files.push(filePath);
+        return;
+      }
+      const entries = await vscode.workspace.fs.readDirectory(uri);
+      for (const [name] of entries.sort(([left], [right]) => left.localeCompare(right))) {
+        if (files.length > limit) return;
+        await visit(path.join(filePath, name));
+      }
+    } catch {
+      // Ignore unavailable paths.
+    }
+  };
+  for (const filePath of paths) {
+    if (files.length > limit) break;
+    await visit(filePath);
+  }
+  return { files: files.slice(0, limit), hasMore: files.length > limit };
+}
+
 function isRegisteredFile(groups: FileGroup[], filePath: string): boolean {
   return groups.some((group) => group.files.some((registeredPath) => {
     if (registeredPath === filePath) return true;
@@ -563,18 +592,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (!groupPath) return;
       const group = findGroup(readGroups(), groupPath);
       if (!group) return;
-      const files: string[] = [];
-      for (const filePath of [...new Set(collectGroupFiles(group))]) {
-        try {
-          const stat = await vscode.workspace.fs.stat(vscode.Uri.file(filePath));
-          if (stat.type !== vscode.FileType.Directory) files.push(filePath);
-        } catch {
-          // Ignore unavailable paths.
-        }
-      }
+      const editorLimit = vscode.workspace.getConfiguration("workbench.editor.limit");
+      const vscodeLimit = editorLimit.get<boolean>("enabled", false) ? editorLimit.get<number>("value", 30) : 30;
+      const limit = Math.max(1, Math.min(30, vscodeLimit));
+      const { files, hasMore } = await collectOpenableFiles([...new Set(collectGroupFiles(group))], limit);
       if (!files.length) return;
-      if (files.length > 10) {
-        const confirmed = await vscode.window.showWarningMessage(`Open ${files.length} files in \"${group.name}\"?`, { modal: true }, "Open");
+      if (files.length > 10 || hasMore) {
+        const message = hasMore ? `Open the first ${limit} files in \"${group.name}\"? More files were skipped.` : `Open ${files.length} files in \"${group.name}\"?`;
+        const confirmed = await vscode.window.showWarningMessage(message, { modal: true }, "Open");
         if (confirmed !== "Open") return;
       }
       for (const filePath of files) await vscode.window.showTextDocument(vscode.Uri.file(filePath), { preview: false, preserveFocus: true });

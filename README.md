@@ -38,7 +38,7 @@ Use the workspace setting `workgroupFiles.commentHighlighting` to turn editor co
 - Use the trash icon to delete a group and all of its contents.
 - Use the minus icon to remove a registered file or folder from a group.
 - Run **Workgroup Files: Export Groups** or **Workgroup Files: Import Groups** from the Command Palette to save or restore the group structure as JSON.
-- Run **Workgroup Files: Open Group** to open every file registered in a selected group and its child groups.
+- Run **Workgroup Files: Open Group** to open files registered in a selected group, its child groups, and registered folders. It opens up to 30 files, or the smaller enabled VS Code editor limit.
 - Run **Workgroup Files: Open Group Settings** to edit the extension's workspace settings JSON directly. Save the editor to apply changes immediately. This file is stored outside the project, so it is not tracked by Git.
 - During import, paths that do not exist are silently skipped.
 
@@ -95,7 +95,7 @@ Install the generated `.vsix` file from **Extensions: Install from VSIX...**.
 - 휴지통 아이콘으로 그룹과 내부 항목을 삭제합니다.
 - `−` 아이콘으로 등록된 파일 또는 폴더를 그룹에서 제거합니다.
 - 명령 팔레트의 **Workgroup Files: Export Groups** 또는 **Workgroup Files: Import Groups**로 그룹 구성을 JSON 파일로 저장하거나 복원합니다.
-- **Workgroup Files: Open Group** 명령으로 선택한 그룹과 하위 그룹에 등록된 모든 파일을 엽니다.
+- **Workgroup Files: Open Group** 명령으로 선택한 그룹·하위 그룹·등록 폴더의 파일을 엽니다. 최대 30개이며, VS Code 편집기 탭 제한이 켜져 있고 더 작으면 해당 값을 따릅니다.
 - **Workgroup Files: Open Group Settings** 명령으로 확장 전용 워크스페이스 설정 JSON을 직접 열어 수정할 수 있으며, 편집기를 저장하면 바로 반영됩니다. 이 파일은 프로젝트 밖에 저장되므로 Git에 추적되지 않습니다.
 - 가져오기 중 존재하지 않는 경로는 별도 메시지 없이 제외됩니다.
 
