@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.4
+
+- Added a dedicated PNG icon for the Visual Studio Marketplace listing.
+
+### 한국어
+
+- Visual Studio Marketplace 목록에 표시할 전용 PNG 아이콘을 추가했습니다.
+
 ## 0.1.3
 
 - Added direct editing through **Open Group Settings**. The workspace settings JSON is stored in VS Code extension storage, outside the project and Git tracking.
