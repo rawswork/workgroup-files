@@ -46,7 +46,11 @@ function collectGroupFiles(group: FileGroup): string[] {
 }
 
 function isRegisteredFile(groups: FileGroup[], filePath: string): boolean {
-  return groups.some((group) => group.files.includes(filePath) || isRegisteredFile(group.groups ?? [], filePath));
+  return groups.some((group) => group.files.some((registeredPath) => {
+    if (registeredPath === filePath) return true;
+    const relativePath = path.relative(registeredPath, filePath);
+    return relativePath.length > 0 && !relativePath.startsWith("..") && !path.isAbsolute(relativePath);
+  }) || isRegisteredFile(group.groups ?? [], filePath));
 }
 
 async function sanitizeGroups(value: unknown): Promise<FileGroup[]> {
