@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.7
+
+- Added sidebar actions to edit and delete file comments.
+
+### 한국어
+
+- 사이드바에서 파일 코멘트를 수정하고 삭제하는 기능을 추가했습니다.
+
+## 0.1.6
+
+- Fixed comment registration incorrectly asking to select a group for files inside a registered folder.
+
+### 한국어
+
+- 등록된 폴더 하위 파일에서 코멘트를 추가할 때 그룹을 다시 선택하도록 표시되던 문제를 수정했습니다.
+
 ## 0.1.5
 
 - Added file-based line comments from the editor context menu and Command Palette.

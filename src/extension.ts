@@ -8,11 +8,16 @@ interface FileGroup {
 }
 
 interface FileComment {
+  id: string;
   filePath: string;
   line: number;
   character: number;
   text: string;
   createdAt: string;
+}
+
+function createCommentId(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 type GroupPath = string[];
@@ -86,7 +91,7 @@ async function sanitizeComments(value: unknown): Promise<FileComment[]> {
     if (typeof source.filePath !== "string" || typeof source.line !== "number" || typeof source.character !== "number" || typeof source.text !== "string") continue;
     try {
       const stat = await vscode.workspace.fs.stat(vscode.Uri.file(source.filePath));
-      if (stat.type !== vscode.FileType.Directory) comments.push({ filePath: source.filePath, line: source.line, character: source.character, text: source.text, createdAt: typeof source.createdAt === "string" ? source.createdAt : new Date().toISOString() });
+      if (stat.type !== vscode.FileType.Directory) comments.push({ id: typeof source.id === "string" ? source.id : createCommentId(), filePath: source.filePath, line: source.line, character: source.character, text: source.text, createdAt: typeof source.createdAt === "string" ? source.createdAt : new Date().toISOString() });
     } catch {
       // Missing paths are intentionally excluded during import.
     }
@@ -525,7 +530,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const text = await vscode.window.showInputBox({ prompt: `Comment for line ${editor.selection.active.line + 1}`, validateInput: (value) => value.trim() ? undefined : "Enter a comment." });
       if (!text) return;
       const position = editor.selection.active;
-      await saveComments([...readComments(), { filePath, line: position.line, character: position.character, text: text.trim(), createdAt: new Date().toISOString() }]);
+      await saveComments([...readComments(), { id: createCommentId(), filePath, line: position.line, character: position.character, text: text.trim(), createdAt: new Date().toISOString() }]);
       provider.refresh();
     }),
     vscode.commands.registerCommand("workgroupFiles.removeFileFromGroup", async (item?: vscode.Uri | FileItem | FolderItem) => {
@@ -579,6 +584,30 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const position = new vscode.Position(comment.line, comment.character);
       document.selection = new vscode.Selection(position, position);
       document.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
+    }),
+    vscode.commands.registerCommand("workgroupFiles.editComment", async (item?: CommentItem) => {
+      if (!item) {
+        vscode.window.showInformationMessage("Choose a comment from the Workgroup Files sidebar to edit it.");
+        return;
+      }
+      const comment = readComments().find((candidate) => candidate.id === item.comment.id);
+      if (!comment) return;
+      const text = await vscode.window.showInputBox({ prompt: `Edit comment for line ${comment.line + 1}`, value: comment.text, validateInput: (value) => value.trim() ? undefined : "Enter a comment." });
+      if (!text || text.trim() === comment.text) return;
+      await saveComments(readComments().map((candidate) => candidate.id === comment.id ? { ...candidate, text: text.trim() } : candidate));
+      provider.refresh();
+    }),
+    vscode.commands.registerCommand("workgroupFiles.deleteComment", async (item?: CommentItem) => {
+      if (!item) {
+        vscode.window.showInformationMessage("Choose a comment from the Workgroup Files sidebar to delete it.");
+        return;
+      }
+      const comment = readComments().find((candidate) => candidate.id === item.comment.id);
+      if (!comment) return;
+      const confirmed = await vscode.window.showWarningMessage("Delete this comment?", { modal: true }, "Delete");
+      if (confirmed !== "Delete") return;
+      await saveComments(readComments().filter((candidate) => candidate.id !== comment.id));
+      provider.refresh();
     }),
     vscode.commands.registerCommand("workgroupFiles.revealInExplorer", async (item?: FolderItem) => {
       if (item instanceof FolderItem) {

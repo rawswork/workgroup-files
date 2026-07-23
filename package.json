@@ -3,7 +3,7 @@
   "displayName": "Workgroup Files",
   "description": "Organize frequently used files into workspace groups.",
   "icon": "resources/rawswork_dark.png",
-  "version": "0.1.5",
+  "version": "0.1.7",
   "publisher": "rawswork",
   "license": "MIT",
   "repository": {
@@ -70,6 +70,22 @@
       {
         "command": "workgroupFiles.addComment",
         "title": "Workgroup Files: Add Comment at Cursor"
+      },
+      {
+        "command": "workgroupFiles.editComment",
+        "title": "Workgroup Files: Edit Comment",
+        "icon": {
+          "light": "resources/edit-light.svg",
+          "dark": "resources/edit-dark.svg"
+        }
+      },
+      {
+        "command": "workgroupFiles.deleteComment",
+        "title": "Workgroup Files: Delete Comment",
+        "icon": {
+          "light": "resources/delete-light.svg",
+          "dark": "resources/delete-dark.svg"
+        }
       },
       {
         "command": "workgroupFiles.removeFileFromGroup",
@@ -227,6 +243,16 @@
           "command": "workgroupFiles.removeFileFromGroup",
           "when": "view == workgroupFiles.groups && viewItem == workgroupFiles.folder",
           "group": "inline@1"
+        },
+        {
+          "command": "workgroupFiles.editComment",
+          "when": "view == workgroupFiles.groups && viewItem == workgroupFiles.comment",
+          "group": "inline@1"
+        },
+        {
+          "command": "workgroupFiles.deleteComment",
+          "when": "view == workgroupFiles.groups && viewItem == workgroupFiles.comment",
+          "group": "inline@2"
         }
       ]
     }

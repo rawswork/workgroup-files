@@ -28,6 +28,8 @@ Click a file to open it. Click a registered folder to reveal it in Explorer. Use
 
 Place the cursor on a line in a registered file, then run **Workgroup Files: Add Comment at Cursor**. Comments are stored by file, not by group, and appear everywhere that file is registered in the sidebar.
 
+Use the pencil or trash icon on a sidebar comment to edit or delete it.
+
 Use the workspace setting `workgroupFiles.commentHighlighting` to turn editor comment highlights on or off. It is enabled by default.
 
 ## Management
@@ -82,6 +84,8 @@ Install the generated `.vsix` file from **Extensions: Install from VSIX...**.
 파일을 클릭하면 열리고, 등록된 폴더를 클릭하면 탐색기에서 위치가 표시됩니다. 그룹의 펼치기 아이콘을 누르면 하위 폴더가 모두 열리며, 다시 누르면 그룹을 접습니다.
 
 등록된 파일에서 커서를 원하는 줄에 둔 뒤 **Workgroup Files: Add Comment at Cursor** 명령을 실행하면 코멘트를 추가할 수 있습니다. 코멘트는 그룹이 아닌 파일별로 저장되며, 해당 파일이 등록된 모든 그룹 위치에 표시됩니다.
+
+사이드바 코멘트 행의 연필 또는 휴지통 아이콘으로 코멘트를 수정하거나 삭제할 수 있습니다.
 
 워크스페이스 설정 `workgroupFiles.commentHighlighting`으로 편집기 코멘트 강조 표시를 켜거나 끌 수 있으며, 기본값은 켜짐입니다.
 
